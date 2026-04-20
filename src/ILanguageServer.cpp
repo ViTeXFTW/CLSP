@@ -1,3 +1,4 @@
+#include "DocumentStore.hpp"
 #include "JsonRpc.hpp"
 #include "Overloaded.hpp"
 #include <clsp/ILanguageServer.hpp>
@@ -5,7 +6,10 @@
 namespace lsp {
 
 ILanguageServer::ILanguageServer(std::unique_ptr<ITransport> transport)
-    : transport_(std::move(transport)) {}
+    : transport_(std::move(transport)),
+      documents_(std::make_unique<DocumentStore>()) {
+  registerLifecycleHandlers();
+}
 
 int ILanguageServer::run() {
   while (state_ != ServerState::Exited) {
@@ -31,6 +35,17 @@ int ILanguageServer::run() {
 
   return shutdownRequested_ ? 0 : 1;
 }
+
+void ILanguageServer::onInitialized() {}
+void ILanguageServer::onShutdown() {}
+void ILanguageServer::onExit() {}
+void ILanguageServer::onDocumentOpened(const TextDocumentItem &) {}
+void ILanguageServer::onDocumentChanged(
+    const TextDocumentItem &,
+    const std::vector<TextDocumentContentChangeEvent> &) {}
+void ILanguageServer::onDocumentClosed(const DocumentUri &) {}
+void ILanguageServer::onDocumentSaved(const TextDocumentItem &,
+                                      const std::optional<std::string> &) {}
 
 void ILanguageServer::registerLifecycleHandlers() {
   requestHandlers_["initialize"] =

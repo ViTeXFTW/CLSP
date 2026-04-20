@@ -18,7 +18,7 @@ public:
   virtual const TextDocumentItem *get(const DocumentUri &uri) const override;
   virtual size_t size() const override;
   virtual bool contains(const DocumentUri &uri) const override;
-  virtual std::vector<DocumentUri> uris() const;
+  std::vector<DocumentUri> uris() const override;
 
 protected:
   virtual size_t positionToOffset(const std::string &text,

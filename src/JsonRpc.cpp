@@ -77,7 +77,7 @@ std::string serializeError(std::nullptr_t, ErrorCodes code,
   j["jsonrpc"] = JSONRPC_VERSION;
   j["id"] = nullptr;
   j["error"] = {{"code", static_cast<int>(code)}, {"message", message}};
-  return j;
+  return j.dump();
 }
 
 std::string serializeNotification(const std::string &method,

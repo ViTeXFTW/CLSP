@@ -67,7 +67,7 @@ private:
   bool shutdownRequested_ = false;
   TextDocumentSyncKind syncKind_ = TextDocumentSyncKind::None;
 
-  IDocumentStore documents_;
+  std::unique_ptr<IDocumentStore> documents_;
   std::unordered_map<std::string, RequestHandler> requestHandlers_;
   std::unordered_map<std::string, NotificationHandler> notificationHandlers_;
 };
