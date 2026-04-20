@@ -13,6 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(clsp STATIC
+    src/DocumentStore.cpp
     src/ILanguageServer.cpp
     src/JsonRpc.cpp
 )

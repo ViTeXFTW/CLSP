@@ -1,6 +1,6 @@
-#include <clsp/ILanguageServer.hpp>
 #include "JsonRpc.hpp"
 #include "Overloaded.hpp"
+#include <clsp/ILanguageServer.hpp>
 
 namespace lsp {
 
@@ -30,6 +30,47 @@ int ILanguageServer::run() {
   }
 
   return shutdownRequested_ ? 0 : 1;
+}
+
+void ILanguageServer::registerLifecycleHandlers() {
+  requestHandlers_["initialize"] =
+      [this](const nlohmann::json &params) -> nlohmann::json {
+    state_ = ServerState::Initializing;
+    auto result = onInitialize(params.get<InitializeParams>());
+    if (result.capabilities.textDocumentSync) {
+      syncKind_ = *result.capabilities.textDocumentSync;
+    }
+    return result;
+  };
+
+  requestHandlers_["shutdown"] =
+      [this](const nlohmann::json &) -> nlohmann::json {
+    shutdownRequested_ = true;
+    state_ = ServerState::ShuttingDown;
+    onShutdown();
+    return nullptr;
+  };
+
+  notificationHandlers_["initialized"] =
+      [this](const nlohmann::json &) -> void {
+    state_ = ServerState::Running;
+    onInitialized();
+  };
+
+  notificationHandlers_["exit"] = [this](const nlohmann::json &) -> void {
+    state_ = ServerState::Exited;
+    onExit();
+  };
+}
+
+void ILanguageServer::registerRequest(const std::string &method,
+                                      RequestHandler handler) {
+  requestHandlers_[method] = std::move(handler);
+}
+
+void ILanguageServer::registerNotification(const std::string &method,
+                                           NotificationHandler handler) {
+  notificationHandlers_[method] = std::move(handler);
 }
 
 void ILanguageServer::handleRequest(const rpc::ParsedRequest &req) {
