@@ -21,6 +21,14 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
+        },
+        {
+            "name": "_test",
+            "hidden": true,
+            "inherits": "_debug",
+            "cacheVariables": {
+                "CLSP_BUILD_TESTS": "ON"
+            }
         }
     ]
 }

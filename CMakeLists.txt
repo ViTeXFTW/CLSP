@@ -43,6 +43,12 @@ target_compile_options(clsp PRIVATE
     >
 )
 
+option(CLSP_BUILD_TESTS "Build unit tests" OFF)
+if(CLSP_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
