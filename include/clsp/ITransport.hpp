@@ -21,7 +21,7 @@ public:
   /**
    * Sends a raw JSON string, wrapping it with Content-Length header.
    */
-  virtual void sendMessage(const std::string &body) = 0;
+  virtual void sendMessage(const std::string& body) = 0;
 };
 
 } // namespace lsp

@@ -22,7 +22,7 @@ struct InitializeParams {
   std::optional<int> trace;
 };
 
-inline void from_json(const nlohmann::json &j, InitializeParams &p) {
+inline void from_json(const nlohmann::json& j, InitializeParams& p) {
   j.at("processId").get_to(p.processId);
   if (j.contains("clientInfo")) {
     InitializeParams::ClientInfo ci;
@@ -56,14 +56,14 @@ struct InitializeResult {
   std::optional<ServerInfo> serverInfo;
 };
 
-inline void to_json(nlohmann::json &j, const InitializeResult::ServerInfo &si) {
+inline void to_json(nlohmann::json& j, const InitializeResult::ServerInfo& si) {
   j = {{"name", si.name}};
   if (si.version) {
     j["version"] = *si.version;
   }
 }
 
-inline void to_json(nlohmann::json &j, const InitializeResult &r) {
+inline void to_json(nlohmann::json& j, const InitializeResult& r) {
   j = {{"capabilities", r.capabilities}};
   if (r.serverInfo) {
     j["serverInfo"] = *r.serverInfo;

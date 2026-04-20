@@ -13,9 +13,9 @@ using namespace lsp;
 
 class MockTransport : public ITransport {
 public:
-  void push(const std::string &msg) { input_.push(msg); }
+  void push(const std::string& msg) { input_.push(msg); }
 
-  const std::vector<std::string> &sent() const { return sent_; }
+  const std::vector<std::string>& sent() const { return sent_; }
 
   std::optional<std::string> readMessage() override {
     if (input_.empty())
@@ -25,23 +25,24 @@ public:
     return msg;
   }
 
-  void sendMessage(const std::string &body) override { sent_.push_back(body); }
+  void sendMessage(const std::string& body) override { sent_.push_back(body); }
 
 private:
   std::queue<std::string> input_;
   std::vector<std::string> sent_;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers
+// ───────────────────────────────────────────────────────────────────
 
-static std::string request(int id, const std::string &method,
+static std::string request(int id, const std::string& method,
                            nlohmann::json params = nullptr) {
   return nlohmann::json{
       {"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", params}}
       .dump();
 }
 
-static std::string notification(const std::string &method,
+static std::string notification(const std::string& method,
                                 nlohmann::json params = nullptr) {
   return nlohmann::json{
       {"jsonrpc", "2.0"}, {"method", method}, {"params", params}}
@@ -52,21 +53,23 @@ static nlohmann::json initParams() {
   return {{"processId", 1}, {"capabilities", nlohmann::json::object()}};
 }
 
-// ── MinimalServer ─────────────────────────────────────────────────────────────
+// ── MinimalServer
+// ─────────────────────────────────────────────────────────────
 
 class MinimalServer : public ILanguageServer {
 public:
   using ILanguageServer::ILanguageServer;
 
-  InitializeResult onInitialize(const InitializeParams &) override {
+  InitializeResult onInitialize(const InitializeParams&) override {
     return InitializeResult{ServerCapabilities{}, std::nullopt};
   }
 };
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// ── Tests
+// ─────────────────────────────────────────────────────────────────────
 
 TEST(Lifecycle, InitializeReturnsResult) {
-  auto *t = new MockTransport();
+  auto* t = new MockTransport();
   t->push(request(1, "initialize", initParams()));
   t->push(notification("initialized"));
   t->push(notification("exit"));
@@ -82,7 +85,7 @@ TEST(Lifecycle, InitializeReturnsResult) {
 }
 
 TEST(Lifecycle, RequestBeforeInitializeIsRejected) {
-  auto *t = new MockTransport();
+  auto* t = new MockTransport();
   t->push(request(1, "textDocument/hover", {}));
   t->push(notification("exit"));
 
@@ -95,7 +98,7 @@ TEST(Lifecycle, RequestBeforeInitializeIsRejected) {
 }
 
 TEST(Lifecycle, CleanShutdownReturnsZero) {
-  auto *t = new MockTransport();
+  auto* t = new MockTransport();
   t->push(request(1, "initialize", initParams()));
   t->push(notification("initialized"));
   t->push(request(2, "shutdown"));
@@ -106,7 +109,7 @@ TEST(Lifecycle, CleanShutdownReturnsZero) {
 }
 
 TEST(Lifecycle, ExitWithoutShutdownReturnsOne) {
-  auto *t = new MockTransport();
+  auto* t = new MockTransport();
   t->push(notification("exit"));
 
   MinimalServer server((std::unique_ptr<ITransport>(t)));

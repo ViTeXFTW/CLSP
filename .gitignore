@@ -4,6 +4,8 @@
 # Except
 !.gitignore
 !.editorconfig
+!.clang-format
+!.clang-tidy
 
 # Build System
 build/

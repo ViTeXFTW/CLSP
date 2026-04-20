@@ -1,0 +1,11 @@
+---
+IndentWidth: 2
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+BreakBeforeBraces: Attach
+
+KeepEmptyLines:
+    AtEndOfFile: true
+    AtStartOfFile: false
+---

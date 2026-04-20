@@ -30,37 +30,37 @@ public:
   explicit ILanguageServer(std::unique_ptr<ITransport> transport);
   virtual ~ILanguageServer() = default;
 
-  ILanguageServer(const ILanguageServer &) = delete;
-  ILanguageServer &operator=(const ILanguageServer) = delete;
+  ILanguageServer(const ILanguageServer&) = delete;
+  ILanguageServer& operator=(const ILanguageServer) = delete;
 
   int run();
 
 protected:
-  using RequestHandler = std::function<nlohmann::json(const nlohmann::json &)>;
-  using NotificationHandler = std::function<void(const nlohmann::json &)>;
+  using RequestHandler = std::function<nlohmann::json(const nlohmann::json&)>;
+  using NotificationHandler = std::function<void(const nlohmann::json&)>;
 
-  void registerRequest(const std::string &method, RequestHandler handler);
-  void registerNotification(const std::string &method,
+  void registerRequest(const std::string& method, RequestHandler handler);
+  void registerNotification(const std::string& method,
                             NotificationHandler handler);
 
-  virtual InitializeResult onInitialize(const InitializeParams &) = 0;
+  virtual InitializeResult onInitialize(const InitializeParams&) = 0;
 
   virtual void onInitialized();
   virtual void onShutdown();
   virtual void onExit();
 
-  virtual void onDocumentOpened(const TextDocumentItem &document);
+  virtual void onDocumentOpened(const TextDocumentItem& document);
   virtual void
-  onDocumentChanged(const TextDocumentItem &document,
-                    const std::vector<TextDocumentContentChangeEvent> &changes);
-  virtual void onDocumentClosed(const DocumentUri &uri);
-  virtual void onDocumentSaved(const TextDocumentItem &document,
-                               const std::optional<std::string> &text);
+  onDocumentChanged(const TextDocumentItem& document,
+                    const std::vector<TextDocumentContentChangeEvent>& changes);
+  virtual void onDocumentClosed(const DocumentUri& uri);
+  virtual void onDocumentSaved(const TextDocumentItem& document,
+                               const std::optional<std::string>& text);
 
 private:
   void registerLifecycleHandlers();
-  void handleRequest(const rpc::ParsedRequest &req);
-  void handleNotification(const rpc::ParsedNotification &notif);
+  void handleRequest(const rpc::ParsedRequest& req);
+  void handleNotification(const rpc::ParsedNotification& notif);
 
   std::unique_ptr<ITransport> transport_;
   ServerState state_ = ServerState::Uninitialized;

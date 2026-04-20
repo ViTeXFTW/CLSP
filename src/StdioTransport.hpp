@@ -13,16 +13,16 @@ namespace lsp {
 
 class StdioTransport : public ITransport {
 public:
-  StdioTransport(std::istream *in, std::ostream *out);
+  StdioTransport(std::istream* in, std::ostream* out);
 
   std::optional<std::string> readMessage() override;
-  void sendMessage(const std::string &body) override;
+  void sendMessage(const std::string& body) override;
 
 private:
   std::optional<int32_t> readHeaders();
 
-  std::istream *in_;
-  std::ostream *out_;
+  std::istream* in_;
+  std::ostream* out_;
 };
 
 inline std::unique_ptr<StdioTransport> makeStdioTransport() {

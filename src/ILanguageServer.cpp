@@ -20,13 +20,13 @@ int ILanguageServer::run() {
 
     auto parsed = rpc::parseMessage(*raw);
 
-    std::visit(overloaded{[this](const rpc::ParsedRequest &req) {
+    std::visit(overloaded{[this](const rpc::ParsedRequest& req) {
                             handleRequest(req);
                           },
-                          [this](const rpc::ParsedNotification &notif) {
+                          [this](const rpc::ParsedNotification& notif) {
                             handleNotification(notif);
                           },
-                          [this](const rpc::ParsedError &err) {
+                          [this](const rpc::ParsedError& err) {
                             transport_->sendMessage(
                                 serializeError(nullptr, err.code, err.message));
                           }},
@@ -39,17 +39,17 @@ int ILanguageServer::run() {
 void ILanguageServer::onInitialized() {}
 void ILanguageServer::onShutdown() {}
 void ILanguageServer::onExit() {}
-void ILanguageServer::onDocumentOpened(const TextDocumentItem &) {}
+void ILanguageServer::onDocumentOpened(const TextDocumentItem&) {}
 void ILanguageServer::onDocumentChanged(
-    const TextDocumentItem &,
-    const std::vector<TextDocumentContentChangeEvent> &) {}
-void ILanguageServer::onDocumentClosed(const DocumentUri &) {}
-void ILanguageServer::onDocumentSaved(const TextDocumentItem &,
-                                      const std::optional<std::string> &) {}
+    const TextDocumentItem&,
+    const std::vector<TextDocumentContentChangeEvent>&) {}
+void ILanguageServer::onDocumentClosed(const DocumentUri&) {}
+void ILanguageServer::onDocumentSaved(const TextDocumentItem&,
+                                      const std::optional<std::string>&) {}
 
 void ILanguageServer::registerLifecycleHandlers() {
   requestHandlers_["initialize"] =
-      [this](const nlohmann::json &params) -> nlohmann::json {
+      [this](const nlohmann::json& params) -> nlohmann::json {
     state_ = ServerState::Initializing;
     auto result = onInitialize(params.get<InitializeParams>());
     if (result.capabilities.textDocumentSync) {
@@ -59,36 +59,35 @@ void ILanguageServer::registerLifecycleHandlers() {
   };
 
   requestHandlers_["shutdown"] =
-      [this](const nlohmann::json &) -> nlohmann::json {
+      [this](const nlohmann::json&) -> nlohmann::json {
     shutdownRequested_ = true;
     state_ = ServerState::ShuttingDown;
     onShutdown();
     return nullptr;
   };
 
-  notificationHandlers_["initialized"] =
-      [this](const nlohmann::json &) -> void {
+  notificationHandlers_["initialized"] = [this](const nlohmann::json&) -> void {
     state_ = ServerState::Running;
     onInitialized();
   };
 
-  notificationHandlers_["exit"] = [this](const nlohmann::json &) -> void {
+  notificationHandlers_["exit"] = [this](const nlohmann::json&) -> void {
     state_ = ServerState::Exited;
     onExit();
   };
 }
 
-void ILanguageServer::registerRequest(const std::string &method,
+void ILanguageServer::registerRequest(const std::string& method,
                                       RequestHandler handler) {
   requestHandlers_[method] = std::move(handler);
 }
 
-void ILanguageServer::registerNotification(const std::string &method,
+void ILanguageServer::registerNotification(const std::string& method,
                                            NotificationHandler handler) {
   notificationHandlers_[method] = std::move(handler);
 }
 
-void ILanguageServer::handleRequest(const rpc::ParsedRequest &req) {
+void ILanguageServer::handleRequest(const rpc::ParsedRequest& req) {
   if (state_ == ServerState::Uninitialized && req.method != "initialize") {
     transport_->sendMessage(
         rpc::serializeError(req.id, rpc::ErrorCodes::ServerNotInitialized,
@@ -119,15 +118,15 @@ void ILanguageServer::handleRequest(const rpc::ParsedRequest &req) {
   try {
     nlohmann::json result = reqIter->second(req.params);
     transport_->sendMessage(rpc::serializeResult(req.id, result));
-  } catch (const rpc::JsonRpcException &e) {
+  } catch (const rpc::JsonRpcException& e) {
     transport_->sendMessage(rpc::serializeError(req.id, e.code(), e.what()));
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     transport_->sendMessage(
         rpc::serializeError(req.id, rpc::ErrorCodes::InternalError, e.what()));
   }
 }
 
-void ILanguageServer::handleNotification(const rpc::ParsedNotification &notif) {
+void ILanguageServer::handleNotification(const rpc::ParsedNotification& notif) {
   if (notif.method == "exit") {
     state_ = ServerState::Exited;
     onExit();
@@ -145,7 +144,7 @@ void ILanguageServer::handleNotification(const rpc::ParsedNotification &notif) {
 
   try {
     notifIter->second(notif.params);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     // Swallow error
   }
 }

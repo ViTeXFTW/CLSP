@@ -4,15 +4,15 @@ namespace lsp {
 
 namespace rpc {
 
-nlohmann::json idToJson(const std::variant<int, std::string> &id) {
-  return std::visit([](const auto &v) -> nlohmann::json { return v; }, id);
+nlohmann::json idToJson(const std::variant<int, std::string>& id) {
+  return std::visit([](const auto& v) -> nlohmann::json { return v; }, id);
 }
 
-ParsedMessage parseMessage(const std::string &rawJson) {
+ParsedMessage parseMessage(const std::string& rawJson) {
   nlohmann::json j;
   try {
     j = nlohmann::json::parse(rawJson);
-  } catch (const nlohmann::json::parse_error &) {
+  } catch (const nlohmann::json::parse_error&) {
     return ParsedError{ErrorCodes::ParseError, "Invalid JSON"};
   }
 
@@ -53,8 +53,8 @@ ParsedMessage parseMessage(const std::string &rawJson) {
   return ParsedNotification{std::move(method), std::move(params)};
 }
 
-std::string serializeResult(const std::variant<int, std::string> &id,
-                            const nlohmann::json &result) {
+std::string serializeResult(const std::variant<int, std::string>& id,
+                            const nlohmann::json& result) {
   nlohmann::json j;
   j["jsonrpc"] = JSONRPC_VERSION;
   j["id"] = idToJson(id);
@@ -62,8 +62,8 @@ std::string serializeResult(const std::variant<int, std::string> &id,
   return j.dump();
 }
 
-std::string serializeError(const std::variant<int, std::string> &id,
-                           ErrorCodes code, const std::string &message) {
+std::string serializeError(const std::variant<int, std::string>& id,
+                           ErrorCodes code, const std::string& message) {
   nlohmann::json j;
   j["jsonrpc"] = JSONRPC_VERSION;
   j["id"] = idToJson(id);
@@ -72,7 +72,7 @@ std::string serializeError(const std::variant<int, std::string> &id,
 }
 
 std::string serializeError(std::nullptr_t, ErrorCodes code,
-                           const std::string &message) {
+                           const std::string& message) {
   nlohmann::json j;
   j["jsonrpc"] = JSONRPC_VERSION;
   j["id"] = nullptr;
@@ -80,8 +80,8 @@ std::string serializeError(std::nullptr_t, ErrorCodes code,
   return j.dump();
 }
 
-std::string serializeNotification(const std::string &method,
-                                  const nlohmann::json &params) {
+std::string serializeNotification(const std::string& method,
+                                  const nlohmann::json& params) {
   nlohmann::json j;
   j["jsonrpc"] = JSONRPC_VERSION;
   j["method"] = method;

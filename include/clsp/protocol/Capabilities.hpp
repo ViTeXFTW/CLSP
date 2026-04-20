@@ -11,7 +11,7 @@ struct ServerCapabilities {
   std::optional<TextDocumentSyncKind> textDocumentSync;
 };
 
-inline void to_json(nlohmann::json &j, const ServerCapabilities &c) {
+inline void to_json(nlohmann::json& j, const ServerCapabilities& c) {
   j = nlohmann::json::object();
   if (c.textDocumentSync) {
     j["textDocumentSync"] = static_cast<int>(*c.textDocumentSync);

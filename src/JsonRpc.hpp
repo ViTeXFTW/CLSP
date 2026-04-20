@@ -26,7 +26,7 @@ enum class ErrorCodes {
 
 class JsonRpcException : public std::runtime_error {
 public:
-  JsonRpcException(ErrorCodes code, const std::string &msg)
+  JsonRpcException(ErrorCodes code, const std::string& msg)
       : std::runtime_error(msg), code_(code) {}
   ErrorCodes code() const noexcept { return code_; };
 
@@ -53,19 +53,19 @@ struct ParsedError {
 using ParsedMessage =
     std::variant<ParsedRequest, ParsedNotification, ParsedError>;
 
-ParsedMessage parseMessage(const std::string &rawJson);
+ParsedMessage parseMessage(const std::string& rawJson);
 
-std::string serializeResult(const std::variant<int, std::string> &id,
-                            const nlohmann::json &result);
+std::string serializeResult(const std::variant<int, std::string>& id,
+                            const nlohmann::json& result);
 
-std::string serializeNotification(const std::string &method,
-                                  const nlohmann::json &params);
+std::string serializeNotification(const std::string& method,
+                                  const nlohmann::json& params);
 
-std::string serializeError(const std::variant<int, std::string> &id,
-                           ErrorCodes code, const std::string &message);
+std::string serializeError(const std::variant<int, std::string>& id,
+                           ErrorCodes code, const std::string& message);
 
 std::string serializeError(std::nullptr_t id, ErrorCodes code,
-                           const std::string &message);
+                           const std::string& message);
 
 } // namespace rpc
 

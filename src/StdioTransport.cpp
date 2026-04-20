@@ -2,7 +2,7 @@
 
 namespace lsp {
 
-StdioTransport::StdioTransport(std::istream *in, std::ostream *out)
+StdioTransport::StdioTransport(std::istream* in, std::ostream* out)
     : in_(in), out_(out) {}
 
 std::optional<int32_t> StdioTransport::readHeaders() {
@@ -69,7 +69,7 @@ std::optional<std::string> StdioTransport::readMessage() {
   return body;
 }
 
-void StdioTransport::sendMessage(const std::string &body) {
+void StdioTransport::sendMessage(const std::string& body) {
   *out_ << "Content-Length: " << body.size() << "\r\n\r\n" << body;
   out_->flush();
 }
