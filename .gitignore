@@ -4,3 +4,8 @@
 # Except
 !.gitignore
 !.editorconfig
+
+# Build System
+build/
+CMakeUserPresets.json
+compile_commands.json
