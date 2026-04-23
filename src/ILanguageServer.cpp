@@ -1,14 +1,16 @@
-#include "DocumentStore.hpp"
 #include "JsonRpc.hpp"
 #include "Overloaded.hpp"
+#include "clsp/protocol/Documents.hpp"
 #include <clsp/ILanguageServer.hpp>
+#include <clsp/protocol/Sync.hpp>
 
 namespace lsp {
 
-ILanguageServer::ILanguageServer(std::unique_ptr<ITransport> transport)
-    : transport_(std::move(transport)),
-      documents_(std::make_unique<DocumentStore>()) {
+ILanguageServer::ILanguageServer(std::unique_ptr<ITransport> transport,
+                                 std::unique_ptr<IDocumentStore> documents)
+    : transport_(std::move(transport)), documents_(std::move(documents)) {
   registerLifecycleHandlers();
+  registerSyncHandlers();
 }
 
 int ILanguageServer::run() {
@@ -39,11 +41,20 @@ int ILanguageServer::run() {
 void ILanguageServer::onInitialized() {}
 void ILanguageServer::onShutdown() {}
 void ILanguageServer::onExit() {}
-void ILanguageServer::onDocumentOpened(const TextDocumentItem&) {}
+
+void ILanguageServer::onDocumentOpened(const TextDocumentItem& document) {
+  documents_->open(document);
+}
+
 void ILanguageServer::onDocumentChanged(
-    const TextDocumentItem&,
-    const std::vector<TextDocumentContentChangeEvent>&) {}
-void ILanguageServer::onDocumentClosed(const DocumentUri&) {}
+    const TextDocumentItem& document,
+    const std::vector<TextDocumentContentChangeEvent>& changes) {
+  documents_->applyChange(
+      VersionedTextDocumentIdentifier{document.uri, document.version}, changes);
+}
+void ILanguageServer::onDocumentClosed(const DocumentUri& uri) {
+  documents_->close(uri);
+}
 void ILanguageServer::onDocumentSaved(const TextDocumentItem&,
                                       const std::optional<std::string>&) {}
 
@@ -75,6 +86,38 @@ void ILanguageServer::registerLifecycleHandlers() {
     state_ = ServerState::Exited;
     onExit();
   };
+}
+
+void ILanguageServer::registerSyncHandlers() {
+  notificationHandlers_["textDocument/didOpen"] =
+      [this](const nlohmann::json& params) {
+        auto p = params.get<DidOpenParams>();
+        onDocumentOpened(p.textDocument);
+      };
+
+  notificationHandlers_["textDocument/didChange"] =
+      [this](const nlohmann::json& params) {
+        auto p = params.get<DidChangeParams>();
+        TextDocumentItem doc;
+        doc.uri = p.textDocument.uri;
+        doc.version = p.textDocument.version;
+        onDocumentChanged(doc, p.contentChanges);
+      };
+
+  notificationHandlers_["textDocument/didClose"] =
+      [this](const nlohmann::json& params) {
+        auto p = params.get<DidCloseParams>();
+        onDocumentClosed(p.uri);
+      };
+
+  notificationHandlers_["textDocument/didSave"] =
+      [this](const nlohmann::json& params) {
+        auto p = params.get<DidSaveParams>();
+        const auto* doc = documents_->get(p.uri);
+        if (doc) {
+          onDocumentSaved(*doc, p.text);
+        }
+      };
 }
 
 void ILanguageServer::registerRequest(const std::string& method,

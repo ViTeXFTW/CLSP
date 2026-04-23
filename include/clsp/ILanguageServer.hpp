@@ -27,7 +27,8 @@ enum class ServerState {
 
 class ILanguageServer {
 public:
-  explicit ILanguageServer(std::unique_ptr<ITransport> transport);
+  explicit ILanguageServer(std::unique_ptr<ITransport> transport,
+                           std::unique_ptr<IDocumentStore> documents);
   virtual ~ILanguageServer() = default;
 
   ILanguageServer(const ILanguageServer&) = delete;
@@ -59,6 +60,7 @@ protected:
 
 private:
   void registerLifecycleHandlers();
+  void registerSyncHandlers();
   void handleRequest(const rpc::ParsedRequest& req);
   void handleNotification(const rpc::ParsedNotification& notif);
 
