@@ -4,6 +4,7 @@ add_executable(clsp_tests
     JsonRpcTest.cpp
     ProtocolTest.cpp
     LifecycleTest.cpp
+    ServerMessagingTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE

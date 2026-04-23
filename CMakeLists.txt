@@ -16,6 +16,7 @@ add_library(clsp STATIC
     src/DocumentStore.cpp
     src/ILanguageServer.cpp
     src/JsonRpc.cpp
+    src/StdioTransport.cpp
 )
 
 add_library(CLSP::clsp ALIAS clsp)

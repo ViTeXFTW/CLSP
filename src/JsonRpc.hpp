@@ -50,13 +50,22 @@ struct ParsedError {
   std::string message;
 };
 
+struct ParsedResponse {
+  std::variant<int, std::string> id;
+  nlohmann::json payload; // result object or error object
+  bool isError;
+};
+
 using ParsedMessage =
-    std::variant<ParsedRequest, ParsedNotification, ParsedError>;
+    std::variant<ParsedRequest, ParsedNotification, ParsedError, ParsedResponse>;
 
 ParsedMessage parseMessage(const std::string& rawJson);
 
 std::string serializeResult(const std::variant<int, std::string>& id,
                             const nlohmann::json& result);
+
+std::string serializeRequest(int id, const std::string& method,
+                             const nlohmann::json& params);
 
 std::string serializeNotification(const std::string& method,
                                   const nlohmann::json& params);

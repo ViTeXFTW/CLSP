@@ -85,3 +85,45 @@ TEST(SerializeError, WithNullId) {
   EXPECT_TRUE(j["id"].is_null());
   EXPECT_EQ(j["error"]["code"], static_cast<int>(ErrorCodes::ParseError));
 }
+
+TEST(SerializeRequest, ProducesValidFrame) {
+  auto s = serializeRequest(7, "client/registerCapability",
+                            nlohmann::json::object());
+  auto j = nlohmann::json::parse(s);
+  EXPECT_EQ(j["jsonrpc"], "2.0");
+  EXPECT_EQ(j["id"], 7);
+  EXPECT_EQ(j["method"], "client/registerCapability");
+  EXPECT_TRUE(j["params"].is_object());
+  EXPECT_FALSE(j.contains("result"));
+  EXPECT_FALSE(j.contains("error"));
+}
+
+// ── ParsedResponse
+// ─────────────────────────────────────────────────────────────
+
+TEST(ParseMessage, ValidSuccessResponse) {
+  auto msg = parseMessage(
+      R"({"jsonrpc":"2.0","id":42,"result":{"applied":true}})");
+  ASSERT_TRUE(std::holds_alternative<ParsedResponse>(msg));
+  auto& resp = std::get<ParsedResponse>(msg);
+  EXPECT_EQ(std::get<int>(resp.id), 42);
+  EXPECT_FALSE(resp.isError);
+  EXPECT_EQ(resp.payload["applied"], true);
+}
+
+TEST(ParseMessage, ValidErrorResponse) {
+  auto msg = parseMessage(
+      R"({"jsonrpc":"2.0","id":3,"error":{"code":-32603,"message":"boom"}})");
+  ASSERT_TRUE(std::holds_alternative<ParsedResponse>(msg));
+  auto& resp = std::get<ParsedResponse>(msg);
+  EXPECT_EQ(std::get<int>(resp.id), 3);
+  EXPECT_TRUE(resp.isError);
+  EXPECT_EQ(resp.payload["code"], -32603);
+  EXPECT_EQ(resp.payload["message"], "boom");
+}
+
+TEST(ParseMessage, ResponseMissingResultAndError) {
+  auto msg = parseMessage(R"({"jsonrpc":"2.0","id":1})");
+  ASSERT_TRUE(std::holds_alternative<ParsedError>(msg));
+  EXPECT_EQ(std::get<ParsedError>(msg).code, ErrorCodes::InvalidRequest);
+}

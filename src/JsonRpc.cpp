@@ -28,8 +28,29 @@ ParsedMessage parseMessage(const std::string& rawJson) {
   }
 
   auto methodIter = j.find("method");
+
+  // No method → server-initiated response coming back to us
   if (methodIter == j.end() || !methodIter->is_string()) {
-    return ParsedError{ErrorCodes::InvalidRequest, "Missing or invalid method"};
+    auto idIter = j.find("id");
+    if (idIter == j.end()) {
+      return ParsedError{ErrorCodes::InvalidRequest, "Missing method and id"};
+    }
+    std::variant<int, std::string> id;
+    if (idIter->is_number_integer()) {
+      id = idIter->get<int>();
+    } else if (idIter->is_string()) {
+      id = idIter->get<std::string>();
+    } else {
+      return ParsedError{ErrorCodes::InvalidRequest, "Invalid id type"};
+    }
+    if (j.contains("error")) {
+      return ParsedResponse{std::move(id), j["error"], true};
+    }
+    if (j.contains("result")) {
+      return ParsedResponse{std::move(id), j["result"], false};
+    }
+    return ParsedError{ErrorCodes::InvalidRequest,
+                       "Response missing both result and error"};
   }
 
   std::string method = methodIter->get<std::string>();
@@ -77,6 +98,16 @@ std::string serializeError(std::nullptr_t, ErrorCodes code,
   j["jsonrpc"] = JSONRPC_VERSION;
   j["id"] = nullptr;
   j["error"] = {{"code", static_cast<int>(code)}, {"message", message}};
+  return j.dump();
+}
+
+std::string serializeRequest(int id, const std::string& method,
+                             const nlohmann::json& params) {
+  nlohmann::json j;
+  j["jsonrpc"] = JSONRPC_VERSION;
+  j["id"] = id;
+  j["method"] = method;
+  j["params"] = params;
   return j.dump();
 }
 
