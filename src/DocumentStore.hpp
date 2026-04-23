@@ -11,9 +11,9 @@ namespace lsp {
 class DocumentStore : public IDocumentStore {
 public:
   const TextDocumentItem& open(const TextDocumentItem& item) override;
-  virtual TextDocumentItem* applyChange(
-      const VersionedTextDocumentIdentifier& id,
-      const std::vector<TextDocumentContentChangeEvent>& changes) override;
+  virtual TextDocumentItem*
+  applyChange(const VersionedTextDocumentIdentifier& id,
+              const std::vector<TextDocumentChangeEvent>& changes) override;
   virtual bool close(const DocumentUri& uri) override;
   virtual const TextDocumentItem* get(const DocumentUri& uri) const override;
   virtual size_t size() const override;

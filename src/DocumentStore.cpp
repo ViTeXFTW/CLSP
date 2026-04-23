@@ -11,7 +11,7 @@ const TextDocumentItem& DocumentStore::open(const TextDocumentItem& item) {
 
 TextDocumentItem* DocumentStore::applyChange(
     const VersionedTextDocumentIdentifier& id,
-    const std::vector<TextDocumentContentChangeEvent>& changes) {
+    const std::vector<TextDocumentChangeEvent>& changes) {
   auto it = documents_.find(id.uri);
   if (it == documents_.end()) {
     return nullptr;

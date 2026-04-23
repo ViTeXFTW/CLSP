@@ -48,7 +48,7 @@ void ILanguageServer::onDocumentOpened(const TextDocumentItem& document) {
 
 void ILanguageServer::onDocumentChanged(
     const TextDocumentItem& document,
-    const std::vector<TextDocumentContentChangeEvent>& changes) {
+    const std::vector<TextDocumentChangeEvent>& changes) {
   documents_->applyChange(
       VersionedTextDocumentIdentifier{document.uri, document.version}, changes);
 }

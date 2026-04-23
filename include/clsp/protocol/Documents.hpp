@@ -33,13 +33,12 @@ inline void from_json(const nlohmann::json& j,
   j.at("version").get_to(id.version);
 }
 
-struct TextDocumentContentChangeEvent {
+struct TextDocumentChangeEvent {
   std::optional<Range> range;
   std::string text;
 };
 
-inline void from_json(const nlohmann::json& j,
-                      TextDocumentContentChangeEvent& e) {
+inline void from_json(const nlohmann::json& j, TextDocumentChangeEvent& e) {
   if (j.contains("range") && !j["range"].is_null()) {
     e.range = j["range"].get<Range>();
   }

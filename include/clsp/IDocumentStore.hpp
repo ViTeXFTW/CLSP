@@ -16,7 +16,7 @@ public:
   virtual const TextDocumentItem& open(const TextDocumentItem& item) = 0;
   virtual TextDocumentItem*
   applyChange(const VersionedTextDocumentIdentifier& id,
-              const std::vector<TextDocumentContentChangeEvent>& changes) = 0;
+              const std::vector<TextDocumentChangeEvent>& changes) = 0;
 
   virtual bool close(const DocumentUri& uri) = 0;
   virtual const TextDocumentItem* get(const DocumentUri& uri) const = 0;

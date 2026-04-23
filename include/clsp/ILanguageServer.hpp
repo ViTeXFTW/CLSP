@@ -53,7 +53,7 @@ protected:
   virtual void onDocumentOpened(const TextDocumentItem& document);
   virtual void
   onDocumentChanged(const TextDocumentItem& document,
-                    const std::vector<TextDocumentContentChangeEvent>& changes);
+                    const std::vector<TextDocumentChangeEvent>& changes);
   virtual void onDocumentClosed(const DocumentUri& uri);
   virtual void onDocumentSaved(const TextDocumentItem& document,
                                const std::optional<std::string>& text);

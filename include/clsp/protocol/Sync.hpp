@@ -19,13 +19,13 @@ inline void from_json(const nlohmann::json& j, DidOpenParams& p) {
 
 struct DidChangeParams {
   VersionedTextDocumentIdentifier textDocument;
-  std::vector<TextDocumentContentChangeEvent> contentChanges;
+  std::vector<TextDocumentChangeEvent> contentChanges;
 };
 
 inline void from_json(const nlohmann::json& j, DidChangeParams& p) {
   p.textDocument = j.at("textDocument").get<VersionedTextDocumentIdentifier>();
   p.contentChanges =
-      j.at("contentChanges").get<std::vector<TextDocumentContentChangeEvent>>();
+      j.at("contentChanges").get<std::vector<TextDocumentChangeEvent>>();
 }
 
 struct DidCloseParams {
