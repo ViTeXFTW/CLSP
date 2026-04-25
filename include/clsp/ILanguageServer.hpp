@@ -3,6 +3,7 @@
 #include <atomic>
 #include <clsp/IDocumentStore.hpp>
 #include <clsp/ITransport.hpp>
+#include <clsp/protocol/Diagnostics.hpp>
 #include <clsp/protocol/Documents.hpp>
 #include <clsp/protocol/Lifecycle.hpp>
 #include <cstddef>
@@ -147,6 +148,10 @@ protected:
                   }
                 });
   }
+
+  void publishDiagnostics(const DocumentUri& uri,
+                          std::vector<Diagnostic> diagnostics,
+                          std::optional<int32_t> version = std::nullopt);
 
   virtual InitializeResult onInitialize(const InitializeParams&) = 0;
 

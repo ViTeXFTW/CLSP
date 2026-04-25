@@ -1,6 +1,12 @@
+#include <clsp/ILanguageServer.hpp>
+#include <clsp/ITransport.hpp>
 #include <clsp/protocol/Diagnostics.hpp>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
+#include <optional>
+#include <queue>
+#include <string>
+#include <vector>
 
 using namespace lsp;
 
@@ -121,6 +127,101 @@ TEST(PublishDiagnosticsParams, EmptyArraySerializes) {
   ASSERT_TRUE(j["diagnostics"].is_array());
   EXPECT_TRUE(j["diagnostics"].empty());
   EXPECT_FALSE(j.contains("version"));
+}
+
+// ── publishDiagnostics convenience
+// ────────────────────────────────────────────
+
+namespace {
+
+class DiagMockTransport : public ITransport {
+public:
+  void push(const std::string& msg) { input_.push(msg); }
+  const std::vector<std::string>& sent() const { return sent_; }
+
+  std::optional<std::string> readMessage() override {
+    if (input_.empty())
+      return std::nullopt;
+    auto msg = std::move(input_.front());
+    input_.pop();
+    return msg;
+  }
+  void sendMessage(const std::string& body) override { sent_.push_back(body); }
+
+private:
+  std::queue<std::string> input_;
+  std::vector<std::string> sent_;
+};
+
+class DiagServer : public ILanguageServer {
+public:
+  using ILanguageServer::ILanguageServer;
+  using ILanguageServer::publishDiagnostics;
+
+  InitializeResult onInitialize(const InitializeParams&) override {
+    return InitializeResult{ServerCapabilities{}, std::nullopt};
+  }
+};
+
+static std::string exitNotification() {
+  return nlohmann::json{
+      {"jsonrpc", "2.0"}, {"method", "exit"}, {"params", nullptr}}
+      .dump();
+}
+
+} // namespace
+
+TEST(PublishDiagnosticsHelper, EmitsCorrectFrame) {
+  auto* t = new DiagMockTransport();
+  t->push(exitNotification());
+
+  DiagServer server{std::unique_ptr<ITransport>(t)};
+
+  Diagnostic d;
+  d.range = Range{{1, 0}, {1, 4}};
+  d.message = "boom";
+  d.severity = DiagnosticSeverity::Error;
+  server.publishDiagnostics("file:///a.cpp", {d});
+  server.run();
+
+  ASSERT_GE(t->sent().size(), 1u);
+  auto j = nlohmann::json::parse(t->sent()[0]);
+  EXPECT_EQ(j["jsonrpc"], "2.0");
+  EXPECT_EQ(j["method"], "textDocument/publishDiagnostics");
+  EXPECT_EQ(j["params"]["uri"], "file:///a.cpp");
+  ASSERT_EQ(j["params"]["diagnostics"].size(), 1u);
+  EXPECT_EQ(j["params"]["diagnostics"][0]["message"], "boom");
+  EXPECT_EQ(j["params"]["diagnostics"][0]["severity"].get<int>(),
+            static_cast<int>(DiagnosticSeverity::Error));
+  EXPECT_FALSE(j["params"].contains("version"));
+}
+
+TEST(PublishDiagnosticsHelper, EmptyDiagnosticsClearsForUri) {
+  auto* t = new DiagMockTransport();
+  t->push(exitNotification());
+
+  DiagServer server{std::unique_ptr<ITransport>(t)};
+  server.publishDiagnostics("file:///b.cpp", {});
+  server.run();
+
+  ASSERT_GE(t->sent().size(), 1u);
+  auto j = nlohmann::json::parse(t->sent()[0]);
+  EXPECT_EQ(j["params"]["uri"], "file:///b.cpp");
+  ASSERT_TRUE(j["params"]["diagnostics"].is_array());
+  EXPECT_TRUE(j["params"]["diagnostics"].empty());
+}
+
+TEST(PublishDiagnosticsHelper, VersionEmittedWhenProvided) {
+  auto* t = new DiagMockTransport();
+  t->push(exitNotification());
+
+  DiagServer server{std::unique_ptr<ITransport>(t)};
+  server.publishDiagnostics("file:///c.cpp", {}, /*version=*/12);
+  server.run();
+
+  ASSERT_GE(t->sent().size(), 1u);
+  auto j = nlohmann::json::parse(t->sent()[0]);
+  EXPECT_EQ(j["params"]["version"].get<int>(), 12);
 }
 
 TEST(PublishDiagnosticsParams, WithVersionAndDiagnostics) {

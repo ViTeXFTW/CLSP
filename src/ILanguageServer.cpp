@@ -161,6 +161,16 @@ void ILanguageServer::sendNotification(const std::string& method,
   sendFrame(rpc::serializeNotification(method, params));
 }
 
+void ILanguageServer::publishDiagnostics(const DocumentUri& uri,
+                                         std::vector<Diagnostic> diagnostics,
+                                         std::optional<int32_t> version) {
+  PublishDiagnosticsParams p;
+  p.uri = uri;
+  p.version = version;
+  p.diagnostics = std::move(diagnostics);
+  sendNotification("textDocument/publishDiagnostics", nlohmann::json(p));
+}
+
 void ILanguageServer::sendRequest(const std::string& method,
                                   const nlohmann::json& params,
                                   ResponseCallback callback) {
