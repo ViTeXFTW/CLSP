@@ -2,6 +2,7 @@
 #include "JsonRpc.hpp"
 #include "Overloaded.hpp"
 #include "StdioTransport.hpp"
+#include "ThreadPool.hpp"
 #include "clsp/ITransport.hpp"
 #include "clsp/protocol/Documents.hpp"
 #include <clsp/ILanguageServer.hpp>
@@ -12,19 +13,36 @@
 namespace lsp {
 
 ILanguageServer::ILanguageServer(std::unique_ptr<ITransport> transport,
-                                 std::unique_ptr<IDocumentStore> documents)
-    : transport_(std::move(transport)), documents_(std::move(documents)) {
+                                 LanguageServerOptions options)
+    : ILanguageServer(std::move(transport), std::make_unique<DocumentStore>(),
+                      options) {}
+
+ILanguageServer::ILanguageServer(std::unique_ptr<ITransport> transport,
+                                 std::unique_ptr<IDocumentStore> documents,
+                                 LanguageServerOptions options)
+    : transport_(std::move(transport)), documents_(std::move(documents)),
+      workerPool_(std::make_unique<ThreadPool>(
+          options.workerThreads != 0 ? options.workerThreads
+                                     : ThreadPool::defaultWorkerCount())),
+      syncExecutor_(std::make_unique<ThreadPool>(1)) {
   registerLifecycleHandlers();
   registerSyncHandlers();
-}
-
-ILanguageServer::ILanguageServer(std::unique_ptr<ITransport> transport)
-    : ILanguageServer(std::move(transport), std::make_unique<DocumentStore>()) {
+  registerCancellationHandler();
 }
 
 ILanguageServer::ILanguageServer()
     : ILanguageServer(std::make_unique<StdioTransport>(&std::cin, &std::cout),
-                      std::make_unique<DocumentStore>()) {}
+                      std::make_unique<DocumentStore>(),
+                      LanguageServerOptions{}) {}
+
+ILanguageServer::~ILanguageServer() {
+  if (workerPool_) {
+    workerPool_->shutdown();
+  }
+  if (syncExecutor_) {
+    syncExecutor_->shutdown();
+  }
+}
 
 int ILanguageServer::run() {
   while (state_ != ServerState::Exited) {
@@ -43,11 +61,14 @@ int ILanguageServer::run() {
             },
             [this](const rpc::ParsedResponse& resp) { handleResponse(resp); },
             [this](const rpc::ParsedError& err) {
-              transport_->sendMessage(
-                  serializeError(nullptr, err.code, err.message));
+              sendFrame(rpc::serializeError(nullptr, err.code, err.message));
             }},
         parsed);
   }
+
+  // Drain any in-flight tasks before returning so callbacks/responses fire.
+  syncExecutor_->shutdown();
+  workerPool_->shutdown();
 
   return shutdownRequested_ ? 0 : 1;
 }
@@ -74,7 +95,7 @@ void ILanguageServer::onDocumentSaved(const TextDocumentItem&,
 
 void ILanguageServer::registerLifecycleHandlers() {
   requestHandlers_["initialize"] =
-      [this](const nlohmann::json& params) -> nlohmann::json {
+      [this](const nlohmann::json& params, CancellationToken) -> nlohmann::json {
     state_ = ServerState::Initializing;
     auto result = onInitialize(params.get<InitializeParams>());
     if (result.capabilities.textDocumentSync) {
@@ -90,7 +111,7 @@ void ILanguageServer::registerLifecycleHandlers() {
   };
 
   requestHandlers_["shutdown"] =
-      [this](const nlohmann::json&) -> nlohmann::json {
+      [this](const nlohmann::json&, CancellationToken) -> nlohmann::json {
     shutdownRequested_ = true;
     state_ = ServerState::ShuttingDown;
     onShutdown();
@@ -108,17 +129,47 @@ void ILanguageServer::registerLifecycleHandlers() {
   };
 }
 
+void ILanguageServer::registerCancellationHandler() {
+  notificationHandlers_["$/cancelRequest"] =
+      [this](const nlohmann::json& params) {
+        if (!params.is_object() || !params.contains("id")) {
+          return;
+        }
+        RequestId id;
+        if (params["id"].is_number_integer()) {
+          id = params["id"].get<int>();
+        } else if (params["id"].is_string()) {
+          id = params["id"].get<std::string>();
+        } else {
+          return;
+        }
+        std::lock_guard lock(cancellationMutex_);
+        auto it = cancellationTokens_.find(id);
+        if (it != cancellationTokens_.end()) {
+          it->second.cancel();
+        }
+      };
+}
+
+void ILanguageServer::sendFrame(const std::string& body) {
+  std::lock_guard lock(sendMutex_);
+  transport_->sendMessage(body);
+}
+
 void ILanguageServer::sendNotification(const std::string& method,
                                        const nlohmann::json& params) {
-  transport_->sendMessage(rpc::serializeNotification(method, params));
+  sendFrame(rpc::serializeNotification(method, params));
 }
 
 void ILanguageServer::sendRequest(const std::string& method,
                                   const nlohmann::json& params,
                                   ResponseCallback callback) {
   int id = nextOutgoingId_.fetch_add(1, std::memory_order_relaxed);
-  pendingRequests_.emplace(id, std::move(callback));
-  transport_->sendMessage(rpc::serializeRequest(id, method, params));
+  {
+    std::lock_guard lock(pendingMutex_);
+    pendingRequests_.emplace(id, std::move(callback));
+  }
+  sendFrame(rpc::serializeRequest(id, method, params));
 }
 
 void ILanguageServer::handleResponse(const rpc::ParsedResponse& resp) {
@@ -126,13 +177,21 @@ void ILanguageServer::handleResponse(const rpc::ParsedResponse& resp) {
     return;
   }
   int id = std::get<int>(resp.id);
-  auto it = pendingRequests_.find(id);
-  if (it == pendingRequests_.end()) {
-    return;
+
+  ResponseCallback cb;
+  {
+    std::lock_guard lock(pendingMutex_);
+    auto it = pendingRequests_.find(id);
+    if (it == pendingRequests_.end()) {
+      return;
+    }
+    cb = std::move(it->second);
+    pendingRequests_.erase(it);
   }
-  ResponseCallback cb = std::move(it->second);
-  pendingRequests_.erase(it);
-  cb(resp.payload, resp.isError);
+  workerPool_->submit(
+      [cb = std::move(cb), payload = resp.payload, isError = resp.isError] {
+        cb(payload, isError);
+      });
 }
 
 void ILanguageServer::registerSyncHandlers() {
@@ -177,43 +236,95 @@ void ILanguageServer::registerNotification(const std::string& method,
   notificationHandlers_[method] = std::move(handler);
 }
 
+bool ILanguageServer::isLifecycleRequest(const std::string& method) {
+  return method == "initialize" || method == "shutdown";
+}
+
+bool ILanguageServer::isInlineNotification(const std::string& method) {
+  // These must run on the read thread to keep state transitions and
+  // cancellation flips ordered with subsequent dispatch decisions.
+  return method == "initialized" || method == "exit" ||
+         method == "$/cancelRequest";
+}
+
+bool ILanguageServer::isSyncNotification(const std::string& method) {
+  return method == "textDocument/didOpen" ||
+         method == "textDocument/didChange" ||
+         method == "textDocument/didClose" ||
+         method == "textDocument/didSave";
+}
+
+void ILanguageServer::runRequestHandler(const RequestId& id,
+                                        const std::string& /*method*/,
+                                        const nlohmann::json& params,
+                                        const RequestHandler& handler,
+                                        CancellationToken token) {
+  try {
+    if (token.isCancelled()) {
+      sendFrame(rpc::serializeError(id, rpc::ErrorCodes::RequestCancelled,
+                                    "Request cancelled"));
+      return;
+    }
+    nlohmann::json result = handler(params, token);
+    sendFrame(rpc::serializeResult(id, result));
+  } catch (const RequestCancelled&) {
+    sendFrame(rpc::serializeError(id, rpc::ErrorCodes::RequestCancelled,
+                                  "Request cancelled"));
+  } catch (const rpc::JsonRpcException& e) {
+    sendFrame(rpc::serializeError(id, e.code(), e.what()));
+  } catch (const std::exception& e) {
+    sendFrame(
+        rpc::serializeError(id, rpc::ErrorCodes::InternalError, e.what()));
+  }
+}
+
 void ILanguageServer::handleRequest(const rpc::ParsedRequest& req) {
   if (state_ == ServerState::Uninitialized && req.method != "initialize") {
-    transport_->sendMessage(
-        rpc::serializeError(req.id, rpc::ErrorCodes::ServerNotInitialized,
-                            "Server not initialized"));
+    sendFrame(rpc::serializeError(
+        req.id, rpc::ErrorCodes::ServerNotInitialized,
+        "Server not initialized"));
     return;
   }
 
   if (state_ == ServerState::ShuttingDown) {
-    transport_->sendMessage(rpc::serializeError(
-        req.id, rpc::ErrorCodes::InvalidRequest, "Server is huttting down"));
+    sendFrame(rpc::serializeError(req.id, rpc::ErrorCodes::InvalidRequest,
+                                  "Server is shutting down"));
     return;
   }
 
   if (state_ != ServerState::Uninitialized && req.method == "initialize") {
-    transport_->sendMessage(rpc::serializeError(
-        req.id, rpc::ErrorCodes::InvalidRequest, "Server already initialized"));
+    sendFrame(rpc::serializeError(req.id, rpc::ErrorCodes::InvalidRequest,
+                                  "Server already initialized"));
     return;
   }
 
   auto reqIter = requestHandlers_.find(req.method);
   if (reqIter == requestHandlers_.end()) {
-    transport_->sendMessage(
-        rpc::serializeError(req.id, rpc::ErrorCodes::MethodNotFound,
-                            "Method not found: " + req.method));
+    sendFrame(rpc::serializeError(req.id, rpc::ErrorCodes::MethodNotFound,
+                                  "Method not found: " + req.method));
     return;
   }
 
-  try {
-    nlohmann::json result = reqIter->second(req.params);
-    transport_->sendMessage(rpc::serializeResult(req.id, result));
-  } catch (const rpc::JsonRpcException& e) {
-    transport_->sendMessage(rpc::serializeError(req.id, e.code(), e.what()));
-  } catch (const std::exception& e) {
-    transport_->sendMessage(
-        rpc::serializeError(req.id, rpc::ErrorCodes::InternalError, e.what()));
+  if (isLifecycleRequest(req.method)) {
+    // Lifecycle requests run inline on the read thread so state transitions
+    // are visible before the next message is classified.
+    runRequestHandler(req.id, req.method, req.params, reqIter->second,
+                      CancellationToken{});
+    return;
   }
+
+  CancellationToken token;
+  {
+    std::lock_guard lock(cancellationMutex_);
+    cancellationTokens_[req.id] = token;
+  }
+  workerPool_->submit([this, id = req.id, method = req.method,
+                       params = req.params, handler = reqIter->second,
+                       token]() mutable {
+    runRequestHandler(id, method, params, handler, token);
+    std::lock_guard lock(cancellationMutex_);
+    cancellationTokens_.erase(id);
+  });
 }
 
 void ILanguageServer::handleNotification(const rpc::ParsedNotification& notif) {
@@ -232,11 +343,25 @@ void ILanguageServer::handleNotification(const rpc::ParsedNotification& notif) {
     return;
   }
 
-  try {
-    notifIter->second(notif.params);
-  } catch (const std::exception&) {
-    // Swallow error
+  auto runHandler = [handler = notifIter->second, params = notif.params]() {
+    try {
+      handler(params);
+    } catch (const std::exception&) {
+      // Swallow error
+    }
+  };
+
+  if (isInlineNotification(notif.method)) {
+    runHandler();
+    return;
   }
+
+  if (isSyncNotification(notif.method)) {
+    syncExecutor_->submit(std::move(runHandler));
+    return;
+  }
+
+  workerPool_->submit(std::move(runHandler));
 }
 
 } // namespace lsp

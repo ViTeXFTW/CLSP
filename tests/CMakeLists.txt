@@ -9,6 +9,8 @@ add_executable(clsp_tests
     PositionEncodingTest.cpp
     ThreadPoolTest.cpp
     DocumentStoreTest.cpp
+    CancellationTest.cpp
+    DispatchTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE
