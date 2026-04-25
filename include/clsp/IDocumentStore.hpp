@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clsp/PositionEncoding.hpp>
 #include <clsp/protocol/Capabilities.hpp>
 #include <clsp/protocol/Documents.hpp>
 #include <cstddef>
@@ -24,12 +25,16 @@ public:
   virtual bool contains(const DocumentUri& uri) const = 0;
   virtual std::vector<DocumentUri> uris() const = 0;
 
+  PositionEncoding positionEncoding() const noexcept { return encoding_; }
+  void setPositionEncoding(PositionEncoding e) noexcept { encoding_ = e; }
+
 protected:
   virtual size_t positionToOffset(const std::string& text,
                                   const Position& pos) = 0;
 
   std::unordered_map<DocumentUri, TextDocumentItem> documents_;
   TextDocumentSyncKind syncKind_ = TextDocumentSyncKind::None;
+  PositionEncoding encoding_ = PositionEncoding::UTF16;
 };
 
 } // namespace lsp

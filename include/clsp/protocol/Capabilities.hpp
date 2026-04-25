@@ -86,6 +86,7 @@ inline void to_json(nlohmann::json& j, const DiagnosticOptions& o) {
 
 struct ServerCapabilities {
   std::optional<TextDocumentSyncKind> textDocumentSync;
+  std::optional<std::string> positionEncoding; // "utf-8" / "utf-16" / "utf-32"
   std::optional<bool> hoverProvider;
   std::optional<CompletionOptions> completionProvider;
   std::optional<bool> definitionProvider;
@@ -102,6 +103,9 @@ inline void to_json(nlohmann::json& j, const ServerCapabilities& c) {
   j = nlohmann::json::object();
   if (c.textDocumentSync) {
     j["textDocumentSync"] = static_cast<int>(*c.textDocumentSync);
+  }
+  if (c.positionEncoding) {
+    j["positionEncoding"] = *c.positionEncoding;
   }
   if (c.hoverProvider) {
     j["hoverProvider"] = *c.hoverProvider;
@@ -135,6 +139,22 @@ inline void to_json(nlohmann::json& j, const ServerCapabilities& c) {
   }
 }
 
-struct ClientCapabilities {};
+struct ClientCapabilities {
+  struct General {
+    std::optional<std::vector<std::string>> positionEncodings;
+  };
+  std::optional<General> general;
+};
+
+inline void from_json(const nlohmann::json& j, ClientCapabilities& c) {
+  if (j.contains("general") && j["general"].is_object()) {
+    ClientCapabilities::General g;
+    if (j["general"].contains("positionEncodings")) {
+      g.positionEncodings =
+          j["general"]["positionEncodings"].get<std::vector<std::string>>();
+    }
+    c.general = std::move(g);
+  }
+}
 
 } // namespace lsp

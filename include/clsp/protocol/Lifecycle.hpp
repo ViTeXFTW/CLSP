@@ -45,6 +45,9 @@ inline void from_json(const nlohmann::json& j, InitializeParams& p) {
   if (j.contains("trace")) {
     p.trace = j["trace"].get<int>();
   }
+  if (j.contains("capabilities") && j["capabilities"].is_object()) {
+    p.capabilities = j["capabilities"].get<ClientCapabilities>();
+  }
 }
 
 struct InitializeResult {

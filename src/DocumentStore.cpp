@@ -30,6 +30,40 @@ TextDocumentItem* DocumentStore::applyChange(
   return &it->second;
 }
 
+namespace {
+
+// Decode one UTF-8 code point starting at `text[offset]`. Sets `byteLen` to
+// the number of bytes consumed (1..4) and `utf16Units` to its UTF-16
+// code-unit count (1 for BMP, 2 for surrogate pairs). Malformed sequences
+// are treated as a single replacement byte.
+void decodeUtf8(const std::string& text, size_t offset, size_t& byteLen,
+                size_t& utf16Units) {
+  unsigned char b0 = static_cast<unsigned char>(text[offset]);
+  if (b0 < 0x80) {
+    byteLen = 1;
+    utf16Units = 1;
+  } else if ((b0 & 0xE0) == 0xC0) {
+    byteLen = 2;
+    utf16Units = 1;
+  } else if ((b0 & 0xF0) == 0xE0) {
+    byteLen = 3;
+    utf16Units = 1;
+  } else if ((b0 & 0xF8) == 0xF0) {
+    byteLen = 4;
+    utf16Units = 2; // > U+FFFF encoded as surrogate pair in UTF-16
+  } else {
+    byteLen = 1;
+    utf16Units = 1;
+  }
+  if (offset + byteLen > text.size()) {
+    byteLen = text.size() - offset;
+    if (byteLen == 0)
+      byteLen = 1;
+  }
+}
+
+} // namespace
+
 size_t DocumentStore::positionToOffset(const std::string& text,
                                        const Position& pos) {
   size_t offset = 0;
@@ -40,7 +74,24 @@ size_t DocumentStore::positionToOffset(const std::string& text,
     }
     ++offset;
   }
-  return offset + pos.character;
+  if (encoding_ == PositionEncoding::UTF8) {
+    return offset + pos.character;
+  }
+
+  uint32_t consumed = 0;
+  while (consumed < pos.character && offset < text.size() &&
+         text[offset] != '\n') {
+    size_t byteLen = 1;
+    size_t units = 1;
+    decodeUtf8(text, offset, byteLen, units);
+    if (encoding_ == PositionEncoding::UTF16) {
+      consumed += static_cast<uint32_t>(units);
+    } else { // UTF32: one code point per character
+      consumed += 1;
+    }
+    offset += byteLen;
+  }
+  return offset;
 }
 
 bool DocumentStore::close(const DocumentUri& uri) {

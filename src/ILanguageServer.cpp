@@ -5,6 +5,7 @@
 #include "clsp/ITransport.hpp"
 #include "clsp/protocol/Documents.hpp"
 #include <clsp/ILanguageServer.hpp>
+#include <clsp/PositionEncoding.hpp>
 #include <clsp/protocol/Sync.hpp>
 #include <iostream>
 
@@ -78,6 +79,12 @@ void ILanguageServer::registerLifecycleHandlers() {
     auto result = onInitialize(params.get<InitializeParams>());
     if (result.capabilities.textDocumentSync) {
       syncKind_ = *result.capabilities.textDocumentSync;
+    }
+    if (result.capabilities.positionEncoding) {
+      if (auto e = positionEncodingFromString(
+              *result.capabilities.positionEncoding)) {
+        documents_->setPositionEncoding(*e);
+      }
     }
     return result;
   };
