@@ -34,9 +34,83 @@ TEST(ServerCapabilities, EmptyCapabilities) {
 }
 
 TEST(ServerCapabilities, WithSyncKind) {
-  ServerCapabilities c{TextDocumentSyncKind::Full};
+  ServerCapabilities c{};
+  c.textDocumentSync = TextDocumentSyncKind::Full;
   auto j = nlohmann::json(c);
   EXPECT_EQ(j["textDocumentSync"], 1);
+}
+
+TEST(ServerCapabilities, HoverProviderEmittedOnlyWhenSet) {
+  ServerCapabilities c{};
+  auto j1 = nlohmann::json(c);
+  EXPECT_FALSE(j1.contains("hoverProvider"));
+
+  c.hoverProvider = true;
+  auto j2 = nlohmann::json(c);
+  EXPECT_TRUE(j2["hoverProvider"].get<bool>());
+}
+
+TEST(ServerCapabilities, CompletionOptionsSerialized) {
+  ServerCapabilities c{};
+  CompletionOptions co{};
+  co.triggerCharacters = std::vector<std::string>{".", "->"};
+  co.resolveProvider = true;
+  c.completionProvider = co;
+
+  auto j = nlohmann::json(c);
+  ASSERT_TRUE(j.contains("completionProvider"));
+  EXPECT_EQ(j["completionProvider"]["triggerCharacters"][0], ".");
+  EXPECT_EQ(j["completionProvider"]["triggerCharacters"][1], "->");
+  EXPECT_TRUE(j["completionProvider"]["resolveProvider"].get<bool>());
+  EXPECT_FALSE(j["completionProvider"].contains("allCommitCharacters"));
+}
+
+TEST(ServerCapabilities, SignatureHelpOptionsSerialized) {
+  ServerCapabilities c{};
+  SignatureHelpOptions so{};
+  so.triggerCharacters = std::vector<std::string>{"(", ","};
+  c.signatureHelpProvider = so;
+
+  auto j = nlohmann::json(c);
+  EXPECT_EQ(j["signatureHelpProvider"]["triggerCharacters"][0], "(");
+  EXPECT_FALSE(j["signatureHelpProvider"].contains("retriggerCharacters"));
+}
+
+TEST(ServerCapabilities, CodeActionRenameDiagnosticOptions) {
+  ServerCapabilities c{};
+  CodeActionOptions ca{};
+  ca.codeActionKinds = std::vector<std::string>{"quickfix", "refactor"};
+  c.codeActionProvider = ca;
+
+  RenameOptions ro{};
+  ro.prepareProvider = true;
+  c.renameProvider = ro;
+
+  DiagnosticOptions diag{};
+  diag.identifier = "clsp";
+  diag.interFileDependencies = true;
+  c.diagnosticProvider = diag;
+
+  auto j = nlohmann::json(c);
+  EXPECT_EQ(j["codeActionProvider"]["codeActionKinds"][0], "quickfix");
+  EXPECT_TRUE(j["renameProvider"]["prepareProvider"].get<bool>());
+  EXPECT_EQ(j["diagnosticProvider"]["identifier"], "clsp");
+  EXPECT_TRUE(j["diagnosticProvider"]["interFileDependencies"].get<bool>());
+  EXPECT_FALSE(j["diagnosticProvider"]["workspaceDiagnostics"].get<bool>());
+}
+
+TEST(ServerCapabilities, BoolProvidersAreOptional) {
+  ServerCapabilities c{};
+  c.definitionProvider = true;
+  c.referencesProvider = false;
+  c.documentSymbolProvider = true;
+  c.documentFormattingProvider = false;
+
+  auto j = nlohmann::json(c);
+  EXPECT_TRUE(j["definitionProvider"].get<bool>());
+  EXPECT_FALSE(j["referencesProvider"].get<bool>());
+  EXPECT_TRUE(j["documentSymbolProvider"].get<bool>());
+  EXPECT_FALSE(j["documentFormattingProvider"].get<bool>());
 }
 
 // ── InitializeParams
