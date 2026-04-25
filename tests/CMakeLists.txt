@@ -12,6 +12,7 @@ add_executable(clsp_tests
     CancellationTest.cpp
     DispatchTest.cpp
     DiagnosticsTest.cpp
+    HoverTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE

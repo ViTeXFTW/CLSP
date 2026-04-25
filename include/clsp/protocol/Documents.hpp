@@ -22,6 +22,18 @@ inline void from_json(const nlohmann::json& j, TextDocumentItem& item) {
   j.at("text").get_to(item.text);
 }
 
+struct TextDocumentIdentifier {
+  DocumentUri uri;
+};
+
+inline void to_json(nlohmann::json& j, const TextDocumentIdentifier& id) {
+  j = nlohmann::json{{"uri", id.uri}};
+}
+
+inline void from_json(const nlohmann::json& j, TextDocumentIdentifier& id) {
+  j.at("uri").get_to(id.uri);
+}
+
 struct VersionedTextDocumentIdentifier {
   DocumentUri uri;
   int32_t version;
