@@ -17,6 +17,7 @@ add_library(clsp STATIC
     src/ILanguageServer.cpp
     src/JsonRpc.cpp
     src/StdioTransport.cpp
+    src/ThreadPool.cpp
     src/Uri.cpp
 )
 

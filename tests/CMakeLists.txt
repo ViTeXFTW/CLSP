@@ -7,6 +7,7 @@ add_executable(clsp_tests
     ServerMessagingTest.cpp
     UriTest.cpp
     PositionEncodingTest.cpp
+    ThreadPoolTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE
