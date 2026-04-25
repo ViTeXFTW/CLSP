@@ -11,6 +11,7 @@ add_executable(clsp_tests
     DocumentStoreTest.cpp
     CancellationTest.cpp
     DispatchTest.cpp
+    DiagnosticsTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE
