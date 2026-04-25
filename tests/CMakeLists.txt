@@ -5,6 +5,7 @@ add_executable(clsp_tests
     ProtocolTest.cpp
     LifecycleTest.cpp
     ServerMessagingTest.cpp
+    UriTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE
