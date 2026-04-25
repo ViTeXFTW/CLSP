@@ -4,6 +4,7 @@
 #include <clsp/protocol/Basic.hpp>
 #include <clsp/protocol/Documents.hpp>
 #include <cstddef>
+#include <shared_mutex>
 #include <vector>
 
 namespace lsp {
@@ -23,6 +24,9 @@ public:
 protected:
   virtual size_t positionToOffset(const std::string& text,
                                   const Position& pos) override;
+
+private:
+  mutable std::shared_mutex mu_;
 };
 
 } // namespace lsp

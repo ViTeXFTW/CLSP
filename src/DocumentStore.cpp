@@ -1,8 +1,16 @@
 #include "DocumentStore.hpp"
+#include <mutex>
+#include <shared_mutex>
 
 namespace lsp {
 
+// Note on returned pointers: `get` and `applyChange` return raw pointers
+// into the store. They are stable while the store is mutated only by the
+// serial sync executor (the contract used by ILanguageServer). Callers
+// must not retain them across yield points to other writers.
+
 const TextDocumentItem& DocumentStore::open(const TextDocumentItem& item) {
+  std::unique_lock lock(mu_);
   auto [it, _] = documents_.insert_or_assign(
       item.uri,
       TextDocumentItem{item.uri, item.languageId, item.version, item.text});
@@ -12,6 +20,7 @@ const TextDocumentItem& DocumentStore::open(const TextDocumentItem& item) {
 TextDocumentItem* DocumentStore::applyChange(
     const VersionedTextDocumentIdentifier& id,
     const std::vector<TextDocumentChangeEvent>& changes) {
+  std::unique_lock lock(mu_);
   auto it = documents_.find(id.uri);
   if (it == documents_.end()) {
     return nullptr;
@@ -95,21 +104,28 @@ size_t DocumentStore::positionToOffset(const std::string& text,
 }
 
 bool DocumentStore::close(const DocumentUri& uri) {
+  std::unique_lock lock(mu_);
   return documents_.erase(uri) > 0;
 }
 
 const TextDocumentItem* DocumentStore::get(const DocumentUri& uri) const {
+  std::shared_lock lock(mu_);
   auto it = documents_.find(uri);
   return it != documents_.end() ? &it->second : nullptr;
 }
 
-size_t DocumentStore::size() const { return documents_.size(); }
+size_t DocumentStore::size() const {
+  std::shared_lock lock(mu_);
+  return documents_.size();
+}
 
 bool DocumentStore::contains(const DocumentUri& uri) const {
+  std::shared_lock lock(mu_);
   return documents_.contains(uri);
 }
 
 std::vector<DocumentUri> DocumentStore::uris() const {
+  std::shared_lock lock(mu_);
   std::vector<DocumentUri> result;
   result.reserve(documents_.size());
   for (const auto& [uri, _] : documents_) {
