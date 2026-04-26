@@ -6,7 +6,7 @@ CLSP gives you the wiring — JSON-RPC framing, message dispatch, document
 synchronization, cancellation, threading — so you only have to write the
 language-specific bits (diagnostics, hover, completion, …).
 
-- **C++23**, header-friendly, single static library
+- **C++17**, header-friendly, single static library
 - **stdio transport** out of the box (the LSP default)
 - **Strongly-typed protocol structs** with `nlohmann::json` (de)serialization
 - **Threaded dispatch** with cooperative cancellation
@@ -16,8 +16,8 @@ language-specific bits (diagnostics, hover, completion, …).
 
 ## Requirements
 
-- A C++23 compiler (MSVC 19.40+, Clang 17+, GCC 13+)
-- CMake 3.30+
+- A C++17 compiler
+- CMake 3.14+
 - [nlohmann/json](https://github.com/nlohmann/json) — fetched automatically if
   not already present on your system
 
