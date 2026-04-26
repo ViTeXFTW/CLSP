@@ -10,7 +10,17 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(nlohmann_json CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG QUIET)
+if(NOT nlohmann_json_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json
+        GIT_TAG v3.11.3
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
 add_library(clsp STATIC
     src/DocumentStore.cpp
@@ -55,35 +65,53 @@ endif()
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-install(TARGETS clsp
-    EXPORT CLSPTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set(CLSP_INSTALL_DEFAULT ON)
+else()
+    set(CLSP_INSTALL_DEFAULT OFF)
+endif()
+option(CLSP_INSTALL "Install CLSP targets, headers, and package files" ${CLSP_INSTALL_DEFAULT})
 
-install(DIRECTORY include/clsp
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+if(CLSP_INSTALL)
+    install(TARGETS clsp
+        EXPORT CLSPTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 
-install(EXPORT CLSPTargets
-    FILE CLSPTargets.cmake
-    NAMESPACE CLSP::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CLSP
-)
+    install(DIRECTORY include/clsp
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
 
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
+    install(EXPORT CLSPTargets
+        FILE CLSPTargets.cmake
+        NAMESPACE CLSP::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CLSP
+    )
 
-configure_package_config_file(
-    "${PROJECT_SOURCE_DIR}/cmake/CLSPConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CLSP
-)
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
 
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CLSP
-)
+    configure_package_config_file(
+        "${PROJECT_SOURCE_DIR}/cmake/CLSPConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfig.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CLSP
+    )
+
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/CLSPConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CLSP
+    )
+
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/cmake/clsp.pc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/clsp.pc"
+        @ONLY
+    )
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/clsp.pc"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+    )
+endif()

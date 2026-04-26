@@ -18,28 +18,75 @@ language-specific bits (diagnostics, hover, completion, …).
 
 - A C++23 compiler (MSVC 19.40+, Clang 17+, GCC 13+)
 - CMake 3.30+
-- [nlohmann/json](https://github.com/nlohmann/json) (managed via vcpkg in this
-  project)
+- [nlohmann/json](https://github.com/nlohmann/json) — fetched automatically if
+  not already present on your system
 
 ---
 
-## Installing
+## Consuming CLSP
 
-CLSP installs as a CMake package. From the project root:
+### FetchContent (no install required)
 
-```bash
-cmake --preset default
-cmake --build build
-cmake --install build --prefix /your/install/prefix
-```
-
-In your own project:
+The simplest path. CMake downloads and builds CLSP as part of your own
+configure step. `nlohmann/json` is pulled in automatically if it is not already
+available.
 
 ```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    CLSP
+    GIT_REPOSITORY https://github.com/ViTeXFTW/CLSP
+    GIT_TAG        v1.0.0
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(CLSP)
+
+add_executable(my-language-server main.cpp)
+target_link_libraries(my-language-server PRIVATE CLSP::clsp)
+```
+
+### find_package (system install)
+
+Build and install CLSP once, then reference it from any project via
+`find_package`.
+
+```bash
+# Clone and install
+git clone https://github.com/ViTeXFTW/CLSP
+cmake -S CLSP -B CLSP/build -DCMAKE_BUILD_TYPE=Release
+cmake --build CLSP/build
+cmake --install CLSP/build --prefix /your/install/prefix
+```
+
+```cmake
+# In your own CMakeLists.txt
 find_package(CLSP CONFIG REQUIRED)
 
 add_executable(my-language-server main.cpp)
 target_link_libraries(my-language-server PRIVATE CLSP::clsp)
+```
+
+If you installed to a non-standard prefix, pass
+`-DCMAKE_PREFIX_PATH=/your/install/prefix` when configuring your project.
+
+### pkg-config (Meson, Make, or manual builds)
+
+After installing, a `clsp.pc` file is written to `lib/pkgconfig/`. Point
+`PKG_CONFIG_PATH` at it:
+
+```bash
+export PKG_CONFIG_PATH=/your/install/prefix/lib/pkgconfig
+
+pkg-config --cflags clsp   # → -I/your/install/prefix/include -std=c++23
+pkg-config --libs   clsp   # → -L/your/install/prefix/lib -lclsp
+```
+
+In a `meson.build`:
+
+```python
+clsp_dep = dependency('clsp')
+executable('my-language-server', 'main.cpp', dependencies: clsp_dep)
 ```
 
 ---
@@ -243,7 +290,7 @@ example using a `MockTransport`.
 To build and run the test suite:
 
 ```bash
-cmake --preset default -DCLSP_BUILD_TESTS=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCLSP_BUILD_TESTS=ON
 cmake --build build
 ctest --test-dir build
 ```
