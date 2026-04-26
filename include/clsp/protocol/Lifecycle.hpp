@@ -36,7 +36,7 @@ inline void from_json(const nlohmann::json& j, InitializeParams& p) {
     p.rootPath = j["rootPath"].get<std::string>();
   }
   if (j.contains("rootUri") && !j["rootUri"].is_null()) {
-    p.rootUri = j["rootUri"].get_to(p.rootUri);
+    p.rootUri = j["rootUri"].get<DocumentUri>();
   }
   if (j.contains("initializationOptions") &&
       !j["initializationOptions"].is_null()) {

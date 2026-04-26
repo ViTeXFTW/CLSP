@@ -121,7 +121,7 @@ size_t DocumentStore::size() const {
 
 bool DocumentStore::contains(const DocumentUri& uri) const {
   std::shared_lock lock(mu_);
-  return documents_.contains(uri);
+  return documents_.find(uri) != documents_.end();
 }
 
 std::vector<DocumentUri> DocumentStore::uris() const {
