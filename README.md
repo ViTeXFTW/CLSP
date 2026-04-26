@@ -227,6 +227,25 @@ MyServer() {
 > Register your handlers from the **derived class constructor** — `registerRequest`
 > and `registerNotification` are protected members of `ILanguageServer`.
 
+```cpp
+#include <clsp/protocol/Completion.hpp>
+
+MyServer() {
+  registerRequest<lsp::CompletionParams, lsp::CompletionList>(
+      "textDocument/completion",
+      [this](const lsp::CompletionParams& p, lsp::CancellationToken) {
+        lsp::CompletionList list;
+        lsp::CompletionItem item;
+        item.label = "hello";
+        item.kind  = lsp::CompletionItemKind::Function;
+        item.insertText = "hello($1)$0";
+        item.insertTextFormat = lsp::InsertTextFormat::Snippet;
+        list.items.push_back(std::move(item));
+        return list;
+      });
+}
+```
+
 ### Raw JSON
 
 ```cpp
@@ -300,7 +319,8 @@ ctest --test-dir build
 ## What's next
 
 - `clsp/protocol/Lifecycle.hpp`, `Documents.hpp`, `Diagnostics.hpp`,
-  `Hover.hpp`, `Capabilities.hpp` — start here for available types.
+  `Hover.hpp`, `Completion.hpp`, `Capabilities.hpp` — start here for available
+  types.
 - `clsp/ILanguageServer.hpp` — full list of overridable hooks and the
   request/notification API.
 - `clsp/ITransport.hpp`, `clsp/IDocumentStore.hpp` — interfaces to implement
