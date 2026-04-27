@@ -9,7 +9,7 @@
 namespace lsp {
 
 struct InitializeParams {
-  int processId;
+  std::optional<int> processId;
   struct ClientInfo {
     std::string name;
     std::optional<std::string> version;
@@ -19,11 +19,13 @@ struct InitializeParams {
   std::optional<DocumentUri> rootUri;
   std::optional<nlohmann::json> initializationOptions;
   ClientCapabilities capabilities;
-  std::optional<int> trace;
+  std::optional<std::string> trace;
 };
 
 inline void from_json(const nlohmann::json& j, InitializeParams& p) {
-  j.at("processId").get_to(p.processId);
+  if (j.contains("processId") && !j["processId"].is_null()) {
+    p.processId = j["processId"].get<int>();
+  }
   if (j.contains("clientInfo")) {
     InitializeParams::ClientInfo ci;
     ci.name = j["clientInfo"].at("name").get<std::string>();
@@ -32,7 +34,7 @@ inline void from_json(const nlohmann::json& j, InitializeParams& p) {
     }
     p.clientInfo = std::move(ci);
   }
-  if (j.contains("rootPath")) {
+  if (j.contains("rootPath") && !j["rootPath"].is_null()) {
     p.rootPath = j["rootPath"].get<std::string>();
   }
   if (j.contains("rootUri") && !j["rootUri"].is_null()) {
@@ -42,8 +44,8 @@ inline void from_json(const nlohmann::json& j, InitializeParams& p) {
       !j["initializationOptions"].is_null()) {
     p.initializationOptions = j["initializationOptions"];
   }
-  if (j.contains("trace")) {
-    p.trace = j["trace"].get<int>();
+  if (j.contains("trace") && !j["trace"].is_null()) {
+    p.trace = j["trace"].get<std::string>();
   }
   if (j.contains("capabilities") && j["capabilities"].is_object()) {
     p.capabilities = j["capabilities"].get<ClientCapabilities>();

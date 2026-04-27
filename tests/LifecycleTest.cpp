@@ -115,3 +115,69 @@ TEST(Lifecycle, ExitWithoutShutdownReturnsOne) {
   MinimalServer server((std::unique_ptr<ITransport>(t)));
   EXPECT_EQ(server.run(), 1);
 }
+
+// ── InitializeParams from_json spec compliance
+// ────────────────────────────────────────────
+
+TEST(InitializeParams, NullableFieldsParseWithoutThrowing) {
+  nlohmann::json j = {{"processId", nullptr},
+                      {"rootUri", nullptr},
+                      {"rootPath", nullptr},
+                      {"trace", "off"},
+                      {"capabilities", nlohmann::json::object()}};
+  InitializeParams p;
+  EXPECT_NO_THROW(from_json(j, p));
+  EXPECT_FALSE(p.processId.has_value());
+  EXPECT_FALSE(p.rootPath.has_value());
+  ASSERT_TRUE(p.trace.has_value());
+  EXPECT_EQ(*p.trace, "off");
+}
+
+TEST(InitializeParams, IntegerProcessIdAndVerboseTrace) {
+  nlohmann::json j = {{"processId", 12345},
+                      {"trace", "verbose"},
+                      {"capabilities", nlohmann::json::object()}};
+  InitializeParams p;
+  EXPECT_NO_THROW(from_json(j, p));
+  ASSERT_TRUE(p.processId.has_value());
+  EXPECT_EQ(*p.processId, 12345);
+  ASSERT_TRUE(p.trace.has_value());
+  EXPECT_EQ(*p.trace, "verbose");
+}
+
+TEST(InitializeParams, MissingTraceIsAbsent) {
+  nlohmann::json j = {{"processId", 1},
+                      {"capabilities", nlohmann::json::object()}};
+  InitializeParams p;
+  EXPECT_NO_THROW(from_json(j, p));
+  EXPECT_FALSE(p.trace.has_value());
+}
+
+TEST(InitializeParams, TraceOffIsStored) {
+  nlohmann::json j = {{"processId", 1},
+                      {"trace", "off"},
+                      {"capabilities", nlohmann::json::object()}};
+  InitializeParams p;
+  EXPECT_NO_THROW(from_json(j, p));
+  ASSERT_TRUE(p.trace.has_value());
+  EXPECT_EQ(*p.trace, "off");
+}
+
+TEST(InitializeParams, RootPathStringIsStored) {
+  nlohmann::json j = {{"processId", 1},
+                      {"rootPath", "/some/path"},
+                      {"capabilities", nlohmann::json::object()}};
+  InitializeParams p;
+  EXPECT_NO_THROW(from_json(j, p));
+  ASSERT_TRUE(p.rootPath.has_value());
+  EXPECT_EQ(*p.rootPath, "/some/path");
+}
+
+TEST(InitializeParams, RootPathNullIsAbsent) {
+  nlohmann::json j = {{"processId", 1},
+                      {"rootPath", nullptr},
+                      {"capabilities", nlohmann::json::object()}};
+  InitializeParams p;
+  EXPECT_NO_THROW(from_json(j, p));
+  EXPECT_FALSE(p.rootPath.has_value());
+}
