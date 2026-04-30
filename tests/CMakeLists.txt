@@ -14,6 +14,7 @@ add_executable(clsp_tests
     DiagnosticsTest.cpp
     HoverTest.cpp
     CompletionTest.cpp
+    SemanticTokensTest.cpp
 )
 
 target_link_libraries(clsp_tests PRIVATE

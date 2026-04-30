@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "clsp/protocol/SemanticTokens.hpp"
 
 namespace lsp {
 
@@ -97,6 +98,7 @@ struct ServerCapabilities {
   std::optional<CodeActionOptions> codeActionProvider;
   std::optional<RenameOptions> renameProvider;
   std::optional<DiagnosticOptions> diagnosticProvider;
+  std::optional<SemanticTokensOptions> semanticTokensProvider;
 };
 
 inline void to_json(nlohmann::json& j, const ServerCapabilities& c) {
@@ -136,6 +138,9 @@ inline void to_json(nlohmann::json& j, const ServerCapabilities& c) {
   }
   if (c.diagnosticProvider) {
     j["diagnosticProvider"] = *c.diagnosticProvider;
+  }
+  if (c.semanticTokensProvider) {
+    j["semanticTokensProvider"] = *c.semanticTokensProvider;
   }
 }
 
