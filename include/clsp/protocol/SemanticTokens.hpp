@@ -147,7 +147,7 @@ inline void from_json(const nlohmann::json& j, SemanticTokens& t) {
 //     b.push(0, 4, 5, kVariable, (1u << kReadonly));
 //     SemanticTokens result = b.build();
 class SemanticTokensBuilder {
-public
+public:
   void push(uint32_t line, uint32_t startChar, uint32_t length,
             uint32_t tokenType, uint32_t tokenModifiers = 0) {
     if (length == 0) {
@@ -203,4 +203,4 @@ private:
   std::vector<Token> tokens_;
 };
 
-} // namespace lsp:
+} // namespace lsp
